@@ -37,11 +37,15 @@ render() {  # $1=template path  $2=output path
 }
 
 # --- Step 1: assemble per-container /conf dirs (rendered config + whole include/) ---
+# Re-runnable: take any previous stack down first (a bind mount pins the dir
+# inode, so files written after an rm -rf of a mounted dir would be invisible
+# inside a still-running container).
+"${COMPOSE[@]}" down --remove-orphans 2>/dev/null || true
 rm -rf "$CONF_ROOT"
 mkdir -p "$CONF_ROOT"/{node,vs,web,client} "$LOGS_DIR"
 for c in node vs web client; do cp -r "$INC_DIR" "$CONF_ROOT/$c/include"; done
 
-cp "$CONF_TMPL/node-conf.toml" "$CONF_ROOT/node/node-conf.toml"    # no token
+render "$CONF_TMPL/node-conf.toml.template"           "$CONF_ROOT/node/node-conf.toml"
 render "$CONF_TMPL/adapter-vs-conf.toml.template"     "$CONF_ROOT/vs/adapter-vs-conf.toml"
 render "$CONF_TMPL/adapter-web-conf.toml.template"    "$CONF_ROOT/web/adapter-web-conf.toml"
 render "$CONF_TMPL/adapter-client-conf.toml.template" "$CONF_ROOT/client/adapter-client-conf.toml"

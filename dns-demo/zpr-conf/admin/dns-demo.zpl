@@ -10,8 +10,15 @@ Define zpr-dns as a service.
 # The visa service's admin API, provided by the VS adapter itself.
 Define vs-admin as a service.
 
-Allow users to access web.
+# Deviation from Contract 4's bare `Allow users ...`, found by test: an
+# unreferenced `file` trusted service is pruned by the compiler, so with no
+# attribute reference anywhere in ZPL the attrfile store never loads, alice
+# never receives a user.* attribute, and a bare `users` condition
+# (user.zpr.authority presence) can never match. Qualifying with access:all
+# (alice's value in attrfile.json) weaves the store — the same shape
+# multinode-demo uses (`Allow access:all users to access services.`).
+Allow access:all users to access web.
 
-Allow users to access zpr-dns.
+Allow access:all users to access zpr-dns.
 
 Allow zpr-dns to access vs-admin.

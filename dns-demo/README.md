@@ -63,11 +63,11 @@ Brings up the four containers, compiles and installs the policy, and launches
 Verify:
 
 ```sh
-commands/demo-status                          # every ph up
-commands/demo-vs-admin services               # lists vs-admin and web
-commands/demo-vs-admin services get vs-admin  # zpr_addr == "fd5a:5052::1"
-commands/demo-vs-admin services get zpr-dns   # 404 — declared, no provider yet
-docker exec client curl -fsS 'http://[fd5a:5052:8888::80]'   # overlay works
+commands/demo-status                            # every ph up
+commands/demo-vs-admin services                 # lists vs-admin and web
+commands/demo-vs-admin services --id vs-admin   # zpr_addr == "fd5a:5052::1"
+commands/demo-vs-admin services --id zpr-dns    # 404 — declared, no provider yet
+docker exec client curl -fsS 'http://[fd5a:5052:8888::80]/'   # overlay works
 ```
 
 Teardown:
@@ -80,6 +80,15 @@ docker compose -f docker-compose.yml down
 
 Placeholder — added by I1 together with the `dns` container (CoreDNS with the
 `zpr` plugin, resolving `web.demo` via the VS admin API).
+
+## Policy notes
+
+The ZPL qualifies its user rules with `access:all` (alice's value in
+`attrfile.json`) rather than a bare `Allow users ...`: an unreferenced `file`
+trusted service is pruned at compile time, so without an attribute reference
+the attrfile store never loads, no `user.*` attribute is ever vended, and a
+bare `users` condition can never match. `attrfile.json` is keyed by
+`device.zpr.adapter.cn` (the file store's identity-key/value JSON shape).
 
 ## PKI (zpr-conf/include/)
 

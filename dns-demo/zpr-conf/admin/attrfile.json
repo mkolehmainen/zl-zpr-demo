@@ -1,6 +1,8 @@
 {
-  "alice": {
-    "location": ["local"],
-    "access": ["all"]
+  "device.zpr.adapter.cn": {
+    "alice": {
+      "location": ["local"],
+      "access": ["all"]
+    }
   }
 }
