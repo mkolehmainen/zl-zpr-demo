@@ -27,10 +27,14 @@ cd "$INC_DIR"
 "$PKI" gencakey > auth-ca.key
 "$PKI" gencacert /CN=auth.demo "$DAYS" < auth-ca.key > auth-ca.crt
 
-# authpair NAME CN -- X25519 identity keypair (bootstrap/auth key)
+# authpair NAME -- RSA-2048 identity keypair (bootstrap/auth key). Deliberately
+# NOT zpr-pki genkey: zplc loads bootstrap keys with load_rsa_public_key
+# (zpr-compiler src/crypto.rs), so these must be RSA, exactly like
+# multinode-demo's. zpr-pki stays the tool for everything X25519 (noise).
 authpair() {
-  "$PKI" genkey > "$1-private-key.pem"
-  "$PKI" pubkey < "$1-private-key.pem" > "$1-public-key.pem"
+  openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 \
+    -out "$1-private-key.pem" 2>/dev/null
+  openssl pkey -in "$1-private-key.pem" -pubout -out "$1-public-key.pem"
 }
 
 # noisepair NAME CN -- X25519 noise keypair + CA-signed cert
