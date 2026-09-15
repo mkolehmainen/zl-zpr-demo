@@ -1,0 +1,53 @@
+# dns-demo policy configuration (Contract 4). Single node, no [links.*].
+
+[nodes.n0]
+provider = [["device.zpr.adapter.cn", "node.demo"]]
+zpr_address = "fd5a:5052:90de::10"
+
+[nodes.n0.substrate_addrs]
+i0 = "@@NODE_ADDR@@:5000"
+
+
+[trusted_services.default]
+
+[trusted_services.attrfile]
+api = "file"
+returns_attributes = ["location -> user.location", "access -> user.access{}"]
+expiration_seconds = 3600
+
+
+[bootstrap]
+"node.demo" = "../include/node-public-key.pem"
+"vs.zpr" = "../include/vs-public-key.pem"
+"web.demo" = "../include/web-public-key.pem"
+"dns.demo" = "../include/dns-public-key.pem"
+"alice" = "../include/alice-public-key.pem"
+
+
+[protocols.http]
+l4protocol = "TCP"
+port = 80
+
+[protocols.dns]
+l4protocol = "UDP"
+port = 53
+
+[protocols.vs-admin]
+l4protocol = "TCP"
+port = 8182
+
+
+[services.web]                      # lowercase: DNS lookups are case-sensitive on the VS side
+protocol = "http"
+port = 80
+provider = [["device.zpr.adapter.cn", "web.demo"], ["zpr.addr", "fd5a:5052:8888::80"]]
+
+[services.zpr-dns]
+protocol = "dns"
+port = 53
+provider = [["device.zpr.adapter.cn", "dns.demo"], ["zpr.addr", "fd5a:5052:8888::53"]]
+
+[services.vs-admin]
+protocol = "vs-admin"
+port = 8182
+provider = [["device.zpr.adapter.cn", "vs.zpr"]]

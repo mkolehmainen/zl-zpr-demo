@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# One screen: is every ph up? Exits 1 if any is down.
+#   ./demo-status
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+
+HERE="$(dirname "${BASH_SOURCE[0]}")"
+rc=0
+for n in "${NAMES[@]}"; do
+  "$HERE/demo-check-ph" "$n" || rc=1
+  echo
+done
+exit $rc

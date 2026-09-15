@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Is NAME's ph running? Prints a verdict plus the last 10 log lines.
+# Exits 1 when down, so it composes (see demo-status).
+#   ./demo-check-ph <NAME>
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+
+resolve "${1:-}"
+
+# -x matches the process NAME, not the cmdline. One ph per container, so that
+# is precise enough.
+if on "$N_NAME" 'pgrep -x ph >/dev/null'; then
+  echo "ph is up ($N_NAME, tmux session '$N_SESSION')"
+  up=0
+else
+  echo "ph is DOWN ($N_NAME) — relaunch it with local-compute/deploy-docker.sh"
+  up=1
+fi
+
+tail_log "$N_NAME" -10 | sed 's/^/  | /' || true
+exit $up

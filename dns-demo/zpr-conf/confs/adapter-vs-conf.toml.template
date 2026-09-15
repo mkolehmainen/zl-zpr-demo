@@ -1,0 +1,13 @@
+[global]
+ca_file = "include/auth-ca.crt"
+certificate_file = "include/vs-noise.crt"
+private_key_file = "include/vs-noise.key"
+zpr_addr = [ "fd5a:5052::1" ] # visa service well known addr
+tun_if = "tun9"
+
+[adapter]
+name = "vs.zpr"
+# node's docker-internal static IP (compose), port 5000.
+node_addr = "@@NODE_ADDR@@:5000"
+node_public_key_file = "include/node-noise-pub.pem"
+bootstrap_key = "include/vs-private-key.pem"

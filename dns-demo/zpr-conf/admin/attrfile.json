@@ -1,0 +1,6 @@
+{
+  "alice": {
+    "location": ["local"],
+    "access": ["all"]
+  }
+}

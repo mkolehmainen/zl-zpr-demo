@@ -1,0 +1,10 @@
+[global]
+ca_file = "include/auth-ca.crt"
+zpr_addr = [ "fd5a:5052:8888::53" ] # resolver's pinned service addr (Contract 4)
+tun_if = "tun9"
+
+[adapter]
+name = "dns.demo"
+node_addr = "@@NODE_ADDR@@:5000"
+node_public_key_file = "include/node-noise-pub.pem"
+bootstrap_key = "include/dns-private-key.pem"
