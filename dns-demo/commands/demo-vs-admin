@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Run vs-admin against the running visa service, filling in --svc-url, --ca-cert
+# and the API key.
+#   ./demo-vs-admin services            # one-shot
+#   ./demo-vs-admin gui                 # TUI
+#
+# vs-admin runs inside the vs container because the admin API listens on the vs
+# ZPR address ([fd5a:5052::1]:8182), reachable only from behind an adapter. The
+# key is the same client.key deploy-docker.sh generates each run; it lives on the
+# host and is not mounted into vs, so it goes in via -e VS_API_KEY.
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+
+KEYFILE="$DEMO_DIR/local-compute/client.key"
+[ -f "$KEYFILE" ] || {
+  echo "error: no vsapi key at $KEYFILE — run local-compute/deploy-docker.sh first" >&2
+  exit 1
+}
+
+# -it for the gui only. One-shot commands emit JSON on stdout, and a docker -t
+# pseudo-TTY would sprinkle CRLFs through it and break the jq below.
+TTY=(); [ "${1:-}" = gui ] && [ -t 0 ] && TTY=(-it)
+
+run() {
+  docker exec -e VS_API_KEY="$(cat "$KEYFILE")" "${TTY[@]}" vs \
+    /app/bin/vs-admin \
+      --svc-url "https://[fd5a:5052::1]:8182" \
+      --ca-cert /conf/include/admin-tls-cert.pem \
+      "$@"
+}
+
+# vs-admin prints JSON on stdout (cruft stays on stderr, unpiped) — pretty-print
+# it. jq colorizes only when stdout is a terminal, so `... | grep` still gets
+# plain JSON. gui is a TUI, not JSON: run it straight through.
+if [ "${1:-}" = gui ] || ! command -v jq >/dev/null; then
+  run "$@"; exit   # no jq installed = raw JSON, good enough
+fi
+run "$@" | jq .

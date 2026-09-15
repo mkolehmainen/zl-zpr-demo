@@ -1,0 +1,17 @@
+[global]
+name = "node.demo"
+ca_file = "include/auth-ca.crt"
+certificate_file = "include/node-noise.crt"
+private_key_file = "include/node-noise.key"
+self_addr = "0.0.0.0:5000"
+zpr_addr = [ "fd5a:5052:90de::10" ]
+tun_if = "tun9"
+
+[node]
+# ph refuses a wildcard self_addr without an advertised address (it cannot
+# pick one of several local IPs). This is the node's docker-internal static
+# IP from docker-compose.yml.
+advertised_substrate_addr = "@@NODE_ADDR@@:5000"
+
+[authentication]
+auth_private_key = "include/node-private-key.pem"

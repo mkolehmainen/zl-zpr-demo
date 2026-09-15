@@ -1,0 +1,81 @@
+# Local ZPR DNS demo env: node + vs + web + client, one image, static IPs.
+# Bring up via local-compute/deploy-docker.sh (it renders configs into
+# local-compute/conf/<name>/ first, then `docker compose up -d`).
+#
+# Subnet is 172.30.1.0/24 so it can coexist with multinode-demo's 172.30.0.0/24.
+# The `dns` container (172.30.1.14, CoreDNS + zpr plugin) is added by I1.
+services:
+  node:
+    image: zpr-dns-demo
+    container_name: node
+    command: ["/entrypoint.sh"]
+    cap_add: [NET_ADMIN]
+    devices: ["/dev/net/tun"]
+    privileged: true
+    volumes:
+      - ./local-compute/entrypoint-node.sh:/entrypoint.sh:ro
+      - ./local-compute/conf/node:/conf
+      - ./local-compute/logs:/logs
+    networks:
+      zpr-dns-demo:
+        ipv4_address: 172.30.1.10
+    ports:
+      - "5000:5000/tcp"
+      - "5000:5000/udp"
+
+  vs:
+    image: zpr-dns-demo
+    container_name: vs
+    command: ["/entrypoint.sh"]
+    cap_add: [NET_ADMIN]
+    devices: ["/dev/net/tun"]
+    privileged: true
+    volumes:
+      - ./local-compute/entrypoint-vs.sh:/entrypoint.sh:ro
+      - ./local-compute/conf/vs:/conf
+      - ./local-compute/logs:/logs
+    networks:
+      zpr-dns-demo:
+        ipv4_address: 172.30.1.11
+
+  web:
+    image: zpr-dns-demo
+    container_name: web
+    command: ["/entrypoint.sh"]
+    cap_add: [NET_ADMIN]
+    devices: ["/dev/net/tun"]
+    privileged: true
+    volumes:
+      - ./local-compute/entrypoint-web.sh:/entrypoint.sh:ro
+      - ./local-compute/conf/web:/conf
+      - ./local-compute/logs:/logs
+      # The docroot is container-local: entrypoint-web.sh runs regen-banner.sh
+      # into it continuously, and a bind mount would churn a repo file 5x/sec.
+      # tools/ is mounted (not baked in) so the banner script stays editable
+      # without an image rebuild.
+      - ./tools:/tools:ro
+    networks:
+      zpr-dns-demo:
+        ipv4_address: 172.30.1.12
+
+  client:
+    image: zpr-dns-demo
+    container_name: client
+    command: ["/entrypoint.sh"]
+    cap_add: [NET_ADMIN]
+    devices: ["/dev/net/tun"]
+    privileged: true
+    volumes:
+      - ./local-compute/entrypoint-client.sh:/entrypoint.sh:ro
+      - ./local-compute/conf/client:/conf
+      - ./local-compute/logs:/logs
+    networks:
+      zpr-dns-demo:
+        ipv4_address: 172.30.1.13
+
+networks:
+  zpr-dns-demo:
+    name: zpr-dns-demo
+    ipam:
+      config:
+        - subnet: 172.30.1.0/24

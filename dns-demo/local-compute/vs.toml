@@ -1,0 +1,6 @@
+# Auto-loaded by `vs` from its working dir (/conf). Only overrides the two admin
+# cert paths so they resolve into the mounted include/ dir; everything else
+# (api_keys=vs_keys.toml, vk_uri=redis://127.0.0.1:6379, vs_addr) uses vs defaults.
+[core]
+admin_cert = "include/admin-tls-cert.pem"
+admin_key = "include/admin-tls-key.pem"
