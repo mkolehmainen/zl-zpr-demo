@@ -13,10 +13,13 @@ ZPR_REPO_PREFIX ?=
 CORE_DIR = $(ZPR_ROOT)/$(ZPR_REPO_PREFIX)zpr-core
 VS_DIR = $(ZPR_ROOT)/$(ZPR_REPO_PREFIX)zpr-visaservice
 COMPILER_DIR = $(ZPR_ROOT)/$(ZPR_REPO_PREFIX)zpr-compiler
+# zl-zpr-coredns is zipline-only (no upstream zpr-coredns), so the prefixed
+# name is the only layout that exists; the prefix still composes correctly.
+COREDNS_DIR = $(ZPR_ROOT)/$(ZPR_REPO_PREFIX)zpr-coredns
 
-.PHONY: all ph visaservice compiler check-zpr-root clean
+.PHONY: all ph visaservice compiler coredns check-zpr-root clean
 
-all: ph visaservice compiler
+all: ph visaservice compiler coredns
 
 check-zpr-root:
 	@test -n "$(ZPR_ROOT)" || { \
@@ -45,6 +48,13 @@ compiler: check-zpr-root
 	cd "$(COMPILER_DIR)" && cargo build --release
 	cp "$(COMPILER_DIR)/target/release/zplc" \
 		"$(COMPILER_DIR)/target/release/zpdump" bin/
+
+# CoreDNS with the zpr plugin compiled in (Go build, mirrors how
+# multinode-demo consumes zpr-dashboard: build in the source repo, copy bin/).
+coredns: check-zpr-root
+	mkdir -p bin
+	cd "$(COREDNS_DIR)" && $(MAKE) build
+	cp "$(COREDNS_DIR)/bin/coredns" bin/
 
 clean:
 	rm -rf bin

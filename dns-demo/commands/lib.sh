@@ -24,28 +24,30 @@ LOGS_DIR="$DEMO_DIR/local-compute/logs"
 # LOG     : path on THIS host (mounted volume)
 # LAUNCH  : the command the deploy script used
 # WD      : cwd for the tmux session
-NAMES=(node vs web client)
+NAMES=(node vs web client dns)
 
 declare -A TARGET=(
-  [node]=node [vs]=vs [web]=web [client]=client
+  [node]=node [vs]=vs [web]=web [client]=client [dns]=dns
 )
 declare -A SESSION=(
-  [node]=node [vs]=vs-adapter [web]=web-adapter [client]=client-adapter
+  [node]=node [vs]=vs-adapter [web]=web-adapter [client]=client-adapter [dns]=dns-adapter
 )
 declare -A LOG=(
   [node]="$LOGS_DIR/node.log"
   [vs]="$LOGS_DIR/vs-adapter.log"
   [web]="$LOGS_DIR/web-adapter.log"
   [client]="$LOGS_DIR/client-adapter.log"
+  [dns]="$LOGS_DIR/dns-adapter.log"
 )
 declare -A LAUNCH=(
   [node]='/app/bin/ph node -c node-conf.toml'
   [vs]='/app/bin/ph adapter -c adapter-vs-conf.toml'
   [web]='/app/bin/ph adapter -c adapter-web-conf.toml'
   [client]='/app/bin/ph adapter -c adapter-client-conf.toml'
+  [dns]='/app/bin/ph adapter -c adapter-dns-conf.toml'
 )
 declare -A WD=(
-  [node]=/conf [vs]=/conf [web]=/conf [client]=/conf
+  [node]=/conf [vs]=/conf [web]=/conf [client]=/conf [dns]=/conf
 )
 
 # resolve NAME -- sets N_* for the caller, or lists the valid names and exits 2.

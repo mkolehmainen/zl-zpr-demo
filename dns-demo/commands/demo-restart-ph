@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Relaunch NAME's ph exactly as deploy-docker.sh did: same tmux session name,
+# same recorded LAUNCH command, same /conf cwd, tee'd to the same log.
+#   ./demo-restart-ph <NAME>
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+
+resolve "${1:-}"
+
+on "$N_NAME" "tmux kill-session -t $N_SESSION 2>/dev/null" || true
+on "$N_NAME" "tmux new-session -d -s $N_SESSION -c $N_WD '$N_LAUNCH 2>&1 | tee $N_TLOG'"
+sleep 1
+if on "$N_NAME" "tmux has-session -t $N_SESSION 2>/dev/null"; then
+  echo "restarted $N_SESSION in $N_TARGET"
+else
+  echo "error: $N_SESSION exited immediately in $N_TARGET — see $N_LOG" >&2
+  exit 1
+fi
