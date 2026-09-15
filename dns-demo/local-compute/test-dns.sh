@@ -52,10 +52,13 @@ finish() {
 }
 
 # dig from the client container, against the resolver over the overlay.
+# +time=5: on a policy deny the plugin only answers SERVFAIL after its
+# 2 s HTTP timeout (the denied packets are silently dropped), so dig must
+# wait longer than that or a real SERVFAIL reads as no-reply.
 #   cdig <qtype> <name> [extra dig args...]
 cdig() {
   local qtype="$1" name="$2"; shift 2
-  docker exec client dig @"$RESOLVER" "$qtype" "$name" +time=2 +tries=1 "$@"
+  docker exec client dig @"$RESOLVER" "$qtype" "$name" +time=5 +tries=1 "$@"
 }
 
 # DNS rcode of a query, e.g. NOERROR / NXDOMAIN / SERVFAIL. Network-level
@@ -96,7 +99,14 @@ resolve_key_status() {  # $1 = URL path, e.g. /admin/visas
 # ---------------------------------------------------------------------------
 banner "1. fixture sanity: zpr-dns is registered with its pinned address"
 
-got_addr="$("$CMDS/demo-vs-admin" services --id zpr-dns 2>/dev/null | sed -n 's/.*"zpr_addr": "\([^"]*\)".*/\1/p' | head -1)"
+# The dns adapter registers its provider record moments after deploy returns;
+# poll rather than racing it.
+got_addr=""
+for _ in $(seq 1 15); do
+  got_addr="$("$CMDS/demo-vs-admin" services --id zpr-dns 2>/dev/null | sed -n 's/.*"zpr_addr": "\([^"]*\)".*/\1/p' | head -1)"
+  [ "$got_addr" = "$RESOLVER" ] && break
+  sleep 2
+done
 [ "$got_addr" = "$RESOLVER" ] \
   && ok "zpr-dns zpr_addr == $RESOLVER" \
   || fail "zpr-dns zpr_addr is '${got_addr:-<none>}', wanted $RESOLVER"
