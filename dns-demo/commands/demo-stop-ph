@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Stop NAME's ph by killing its tmux session (issue #38 Step 3: liveness).
+# The container keeps running; relaunch with demo-restart-ph.
+#   ./demo-stop-ph <NAME>
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+
+resolve "${1:-}"
+
+if ! on "$N_NAME" "tmux has-session -t $N_SESSION 2>/dev/null"; then
+  echo "no tmux session '$N_SESSION' in $N_TARGET — already stopped?" >&2
+  exit 0
+fi
+
+on "$N_NAME" "tmux kill-session -t $N_SESSION"
+
+# tmux kill-session takes the shell pipeline down, but give ph a moment and
+# verify it is actually gone — a surviving ph would make liveness flaky.
+for _ in 1 2 3 4 5; do
+  if ! on "$N_NAME" 'pgrep -x ph >/dev/null'; then
+    echo "stopped $N_SESSION in $N_TARGET"
+    exit 0
+  fi
+  sleep 1
+done
+on "$N_NAME" 'pkill -x ph' || true
+sleep 1
+on "$N_NAME" 'pgrep -x ph >/dev/null' \
+  && { echo "error: ph still running in $N_TARGET" >&2; exit 1; }
+echo "stopped $N_SESSION in $N_TARGET (needed pkill)"

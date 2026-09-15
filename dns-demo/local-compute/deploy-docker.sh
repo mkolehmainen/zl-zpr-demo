@@ -42,13 +42,15 @@ render() {  # $1=template path  $2=output path
 # inside a still-running container).
 "${COMPOSE[@]}" down --remove-orphans 2>/dev/null || true
 rm -rf "$CONF_ROOT"
-mkdir -p "$CONF_ROOT"/{node,vs,web,client} "$LOGS_DIR"
-for c in node vs web client; do cp -r "$INC_DIR" "$CONF_ROOT/$c/include"; done
+mkdir -p "$CONF_ROOT"/{node,vs,web,client,dns} "$LOGS_DIR"
+for c in node vs web client dns; do cp -r "$INC_DIR" "$CONF_ROOT/$c/include"; done
 
 render "$CONF_TMPL/node-conf.toml.template"           "$CONF_ROOT/node/node-conf.toml"
 render "$CONF_TMPL/adapter-vs-conf.toml.template"     "$CONF_ROOT/vs/adapter-vs-conf.toml"
 render "$CONF_TMPL/adapter-web-conf.toml.template"    "$CONF_ROOT/web/adapter-web-conf.toml"
 render "$CONF_TMPL/adapter-client-conf.toml.template" "$CONF_ROOT/client/adapter-client-conf.toml"
+render "$CONF_TMPL/adapter-dns-conf.toml.template"    "$CONF_ROOT/dns/adapter-dns-conf.toml"
+cp "$CONF_TMPL/Corefile" "$CONF_ROOT/dns/Corefile"
 cp "$SCRIPT_DIR/vs.toml" "$CONF_ROOT/vs/vs.toml"
 cp "$ADMIN/attrfile.json" "$CONF_ROOT/vs/attrfile.json"   # policy attributes, read by vs
 
@@ -56,6 +58,14 @@ cp "$ADMIN/attrfile.json" "$CONF_ROOT/vs/attrfile.json"   # policy attributes, r
 rm -f "$CONF_ROOT/vs/vs_keys.toml"
 "$BIN_DIR/vsapikey" create --init readwrite client "$CONF_ROOT/vs/vs_keys.toml" > "$SCRIPT_DIR/client.key"
 echo "client key written to $SCRIPT_DIR/client.key"
+
+# Second key for the resolver: least privilege — `resolve` only (GET
+# /admin/services*), appended to the same keys file, delivered to the dns
+# container's /conf as a root-only file. The key string never lands in the
+# Corefile or the image.
+"$BIN_DIR/vsapikey" create resolve dns "$CONF_ROOT/vs/vs_keys.toml" > "$CONF_ROOT/dns/vs-resolve.key"
+chmod 0600 "$CONF_ROOT/dns/vs-resolve.key"
+echo "resolve key written to $CONF_ROOT/dns/vs-resolve.key"
 
 # --- Step 3: compile policy on host (needs ../include keys the .zplc references) ---
 render "$ADMIN/dns-demo.zplc.template" "$ADMIN/dns-demo.zplc"
@@ -88,6 +98,9 @@ docker exec web curl -fsS http://localhost:80 >/dev/null \
   || { echo "ERROR: nginx not serving in web" >&2; exit 1; }
 launch web web-adapter "/app/bin/ph adapter -c adapter-web-conf.toml"
 launch client client-adapter "/app/bin/ph adapter -c adapter-client-conf.toml"
+# After the VS: the resolver's adapter registers zpr-dns's pinned address.
+# CoreDNS itself is the dns container's entrypoint, already running.
+launch dns dns-adapter "/app/bin/ph adapter -c adapter-dns-conf.toml"
 
 cat <<EOF
 

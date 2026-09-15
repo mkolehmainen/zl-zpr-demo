@@ -73,6 +73,21 @@ services:
       zpr-dns-demo:
         ipv4_address: 172.30.1.13
 
+  dns:
+    image: zpr-dns-demo
+    container_name: dns
+    command: ["/entrypoint.sh"]
+    cap_add: [NET_ADMIN]
+    devices: ["/dev/net/tun"]
+    privileged: true
+    volumes:
+      - ./local-compute/entrypoint-dns.sh:/entrypoint.sh:ro
+      - ./local-compute/conf/dns:/conf
+      - ./local-compute/logs:/logs
+    networks:
+      zpr-dns-demo:
+        ipv4_address: 172.30.1.14
+
 networks:
   zpr-dns-demo:
     name: zpr-dns-demo
