@@ -8,7 +8,8 @@
 #   ./deploy-docker.sh
 #
 # Re-runnable: re-renders/recompiles every run, kills old tmux sessions first.
-# Needs the image built (`docker build -t zpr-dns-demo .` in ..).
+# Builds the zpr-dns-demo image itself, so `make` (to populate ../bin) is the
+# only prerequisite.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # local-compute/
@@ -72,7 +73,10 @@ render "$ADMIN/dns-demo.zplc.template" "$ADMIN/dns-demo.zplc"
 ( cd "$ADMIN" && "$BIN_DIR/zplc" --config dns-demo.zplc dns-demo.zpl )
 mv "$ADMIN/dns-demo.bin2" "$CONF_ROOT/vs/dns-demo.bin2"
 
-# --- Step 4: bring up infra (entrypoints set up tun9 / valkey / nginx) ---
+# --- Step 4: build the image, then bring up infra (entrypoints set up tun9 / valkey / nginx) ---
+# Always build: docker's layer cache makes this a no-op unless the Dockerfile or
+# bin/ changed, and bin/ is COPY'd in, so a rebuilt binary needs a rebuilt image.
+docker build -t zpr-dns-demo "$DEMO_DIR"
 "${COMPOSE[@]}" up -d
 sleep 2
 
