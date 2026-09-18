@@ -182,6 +182,30 @@ restore_machines() {
   ok "machines.json restored: conflicts clear, webhost -> $WEB_ADDR"
 }
 
+# Safety net for sections 6-8: once the live machines.json is first mutated,
+# ANY exit — an assertion's fail -> finish, an interrupt, a signal — must still
+# put the committed file back, or the running demo stays reconciled against the
+# last fixture until a redeploy. Best-effort by design: copy + flush only, no
+# polling assertions (a trap that can fail() would recurse into finish); the
+# happy path's restore_machines does the verified restore, this covers every
+# other exit. Armed via arm_restore_trap before the first mutation, disarmed
+# only after section 8's normal cleanup completes.
+restore_machines_trap() {
+  cp "$MACHINES_SRC" "$MACHINES_LIVE" 2>/dev/null || true
+  flush_machines || true
+}
+
+arm_restore_trap() {
+  trap restore_machines_trap EXIT
+  # An untrapped fatal signal skips the EXIT trap; convert to a normal exit.
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+}
+
+disarm_restore_trap() {
+  trap - EXIT INT TERM
+}
+
 # ---------------------------------------------------------------------------
 banner "1. fixture sanity: zpr-dns is registered with its pinned address"
 
@@ -380,6 +404,10 @@ banner "6. collision control: a second machine claims webhost (first claim wins)
 require_client_addr
 vs_log_mark=$(wc -l < "$VS_LOG")
 
+# First mutation of the live machines.json is below: from here until the
+# section-8 cleanup, every exit path must restore the committed file.
+arm_restore_trap
+
 # The client's machine also claims webhost. The web machine claimed it first,
 # so the claim must be refused, recorded, and logged — never reassigned.
 cat > "$MACHINES_LIVE" <<'EOF'
@@ -487,5 +515,9 @@ got_addr="$(host_zpr_addr Not_A_Label)"
   || fail "hosts Not_A_Label resolved to '$got_addr', wanted nothing"
 
 restore_machines no-such-conflict
+
+# Normal cleanup is complete and verified; the safety net has nothing left to
+# cover (and must not re-run the restore on the SUCCESS exit).
+disarm_restore_trap
 
 finish
