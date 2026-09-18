@@ -18,6 +18,9 @@
 #          then hot-install the original policy back
 #      (b) resolve key on GET /admin/visas        -> 403 (least privilege)
 #      (c) resolve key on GET /admin/services/web -> 200
+#   5. machine names    — webhost.demo resolves via the hosts index, is
+#      reachable (curl + ping6), and the unique-id alias resolves to the
+#      same address (zipline#55)
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # local-compute/
@@ -237,5 +240,55 @@ code="$(resolve_key_status /admin/services/web)"
 [ "$code" = "200" ] \
   && ok "resolve key on GET /admin/services/web -> 200" \
   || fail "resolve key on GET /admin/services/web -> ${code:-<none>}, wanted 200"
+
+# ---------------------------------------------------------------------------
+banner "5. machine names: webhost resolves, reachable, alias (zipline#55)"
+
+# The hosts index: the web machine's trusted-service hostname claim, resolved
+# through the admin API (GET /admin/hosts/webhost).
+host_addr="$("$CMDS/demo-vs-admin" hosts webhost 2>/dev/null | sed -n 's/.*"zpr_addr": "\([^"]*\)".*/\1/p' | head -1)"
+[ "$host_addr" = "$WEB_ADDR" ] \
+  && ok "hosts webhost -> zpr_addr == $WEB_ADDR" \
+  || fail "hosts webhost -> '${host_addr:-<none>}', wanted $WEB_ADDR"
+
+# DNS: the machine name resolves from the client, same path as a service name.
+if t=$(wait_rcode AAAA webhost.demo NOERROR 30); then
+  ok "AAAA webhost.demo -> NOERROR (after ${t}s)"
+else
+  fail "AAAA webhost.demo did not reach NOERROR within 30s"
+fi
+
+answer="$(cdig AAAA webhost.demo +short | tr -d '[:space:]')"
+[ "$answer" = "$WEB_ADDR" ] \
+  && ok "AAAA webhost.demo -> $WEB_ADDR" \
+  || fail "AAAA webhost.demo answered '${answer:-<none>}', wanted $WEB_ADDR"
+
+# Reachability: a hostname names, policy still authorizes. http is already
+# allowed; ping6 needs the ICMP6 ping service this issue adds.
+if docker exec client curl -fsS --max-time 10 http://webhost.demo/ >/dev/null; then
+  ok "curl http://webhost.demo (via /etc/resolv.conf) -> 200"
+else
+  fail "curl http://webhost.demo failed (resolv.conf path)"
+fi
+
+# First ICMP packets can be dropped while the visa is negotiated: retry
+# single-packet pings for up to ~20 s rather than trusting the first one.
+ping_ok=""
+for _ in $(seq 1 10); do
+  if docker exec client ping6 -c 1 -W 2 webhost.demo >/dev/null 2>&1; then
+    ping_ok=1; break
+  fi
+  sleep 2
+done
+[ -n "$ping_ok" ] \
+  && ok "ping6 -c1 webhost.demo succeeds" \
+  || fail "ping6 -c1 webhost.demo failed (no reply within retries)"
+
+# Alias: the machine's unique-id value resolves to the same address as its
+# friendly name.
+alias_answer="$(cdig AAAA m-7f3a2b.demo +short | tr -d '[:space:]')"
+[ -n "$alias_answer" ] && [ "$alias_answer" = "$answer" ] \
+  && ok "AAAA m-7f3a2b.demo -> same address as webhost.demo ($alias_answer)" \
+  || fail "AAAA m-7f3a2b.demo answered '${alias_answer:-<none>}', wanted '$answer'"
 
 finish
