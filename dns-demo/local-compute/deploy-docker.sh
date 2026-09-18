@@ -54,6 +54,7 @@ render "$CONF_TMPL/adapter-dns-conf.toml.template"    "$CONF_ROOT/dns/adapter-dn
 cp "$CONF_TMPL/Corefile" "$CONF_ROOT/dns/Corefile"
 cp "$SCRIPT_DIR/vs.toml" "$CONF_ROOT/vs/vs.toml"
 cp "$ADMIN/attrfile.json" "$CONF_ROOT/vs/attrfile.json"   # policy attributes, read by vs
+cp "$ADMIN/machines.json" "$CONF_ROOT/vs/machines.json"   # machine hostnames (zipline#55), read by vs
 
 # --- Step 2: vs_keys.toml + client.key (operator key, used by commands/demo-vs-admin) ---
 rm -f "$CONF_ROOT/vs/vs_keys.toml"
