@@ -1,0 +1,10 @@
+{
+  "device.zpr.adapter.cn": {
+    "web.demo": {
+      "hostnames": ["webhost", "m-7f3a2b"]
+    },
+    "alice": {
+      "hostnames": ["alicebox"]
+    }
+  }
+}

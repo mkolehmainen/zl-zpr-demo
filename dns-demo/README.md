@@ -20,7 +20,7 @@ OCI/OpenTofu parts.
 | `local-compute/deploy-docker.sh` | render templates → mint API keys → compile policy → compose up → launch ZPR processes |
 | `local-compute/entrypoint-*.sh` | per-container tun9 + static ZPR address setup |
 | `local-compute/test-dns.sh` | the end-to-end DNS acceptance test (see below) |
-| `zpr-conf/admin/` | `dns-demo.zpl`, `dns-demo.zplc.template`, `attrfile.json` (policy) |
+| `zpr-conf/admin/` | `dns-demo.zpl`, `dns-demo.zplc.template`, `attrfile.json`, `machines.json` (policy) |
 | `zpr-conf/confs/` | node + adapter config templates, `Corefile` |
 | `zpr-conf/include/` | demo PKI (freshly generated, see below) |
 | `commands/` | `demo-vs-admin`, `demo-status`, `demo-shell`, `demo-check-ph`, `demo-stop-ph`, `demo-restart-ph`, `lib.sh` |
@@ -120,7 +120,7 @@ the resolver's deny to `[fd5a:5052::1]:8182`. Hot-installing the original
 bundle restores resolution.
 
 **Least privilege.** The resolver's `resolve` key only reaches
-`GET /admin/services*`:
+`GET /admin/services*` (and `GET /admin/hosts/{name}`, below):
 
 ```sh
 docker exec dns sh -c 'curl -s -o /dev/null -w "%{http_code}" \
@@ -130,6 +130,63 @@ docker exec dns sh -c 'curl -s -o /dev/null -w "%{http_code}" \
 # same with /admin/services/web                      # 200
 ```
 
+## Machine names (zipline#55)
+
+Services are not the only things with names: a **machine** (an adapter's
+device) can be named too, by a trusted service acting as the naming
+authority. `zpr-conf/admin/machines.json` is that authority's data here —
+the `machines` file store vends it as the `device.hostname` attribute:
+
+```toml
+[trusted_services.machines]
+api = "file"
+returns_attributes = ["hostnames -> device.hostname{}"]
+expiration_seconds = 3600
+```
+
+```json
+{ "device.zpr.adapter.cn": { "web.demo": { "hostnames": ["webhost", "m-7f3a2b"] },
+                             "alice":    { "hostnames": ["alicebox"] } } }
+```
+
+The key is the machine's CN — its cryptographic identity — and the values are
+the names it answers to; the two are deliberately unrelated strings. The
+naming authority returns a unique-by-construction id (`m-7f3a2b`) alongside
+the friendly name, so a lost alias never costs reachability. Claimed names
+land in the VS hosts index (`GET /admin/hosts/{name}`), which the resolver
+consults when a name is not a service — services and hosts share the one
+`.demo` namespace, services first.
+
+```sh
+commands/demo-vs-admin hosts webhost            # zpr_addr == fd5a:5052:8888::80
+docker exec client dig AAAA webhost.demo +short  # fd5a:5052:8888::80
+docker exec client curl -fsS http://webhost.demo/
+docker exec client ping6 -c1 webhost.demo
+```
+
+That `ping6` works only because the policy declares it: a hostname **names**,
+it does not authorize. The demo adds an ICMP6 `ping` protocol/service
+(provided by `web.demo`) and
+`Allow access:all users to access ping on hostname: devices.` — the
+`hostname:` reference is also what keeps the `machines` store woven (see
+Policy notes).
+
+**Negative controls** (`test-dns.sh` sections 6–8). Each mutates the live
+`local-compute/conf/vs/machines.json`, forces a re-read with
+`commands/demo-vs-admin services --id machines --flush` (the admin API's
+`DELETE /admin/services/machines/cache`), and restores the original after:
+
+- **Collision** — a second machine also claims `webhost`: first claim wins,
+  `hosts webhost` still answers the web machine, the loser's refused claim is
+  listed in its `hostname_conflicts` (`actors -a <addr>`), and the VS logs the
+  rejection at `error!`. Never reassigned, never renamed.
+- **Precedence** — a machine claims `web`, a declared policy service name:
+  rejected the same way, and `web.demo` keeps resolving to the service's
+  provider. Policy names always win.
+- **Invalid name** — `Not_A_Label` is not a lowercase DNS label: rejected and
+  never transformed, so no mangled spelling resolves — `not-a-label.demo`
+  stays NXDOMAIN.
+
 ## Policy notes
 
 The ZPL qualifies its user rules with `access:all` (alice's value in
@@ -138,6 +195,11 @@ trusted service is pruned at compile time, so without an attribute reference
 the attrfile store never loads, no `user.*` attribute is ever vended, and a
 bare `users` condition can never match. `attrfile.json` is keyed by
 `device.zpr.adapter.cn` (the file store's identity-key/value JSON shape).
+
+The `machines` store is woven the same way: the `ping` rule's object-side
+device spec `on hostname: devices` (key-presence on `device.hostname`) is the
+reference that keeps it from being pruned. `machines.json` uses the same
+identity-key/value JSON shape.
 
 ## PKI (zpr-conf/include/)
 

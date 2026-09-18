@@ -15,6 +15,15 @@ api = "file"
 returns_attributes = ["location -> user.location", "access -> user.access{}"]
 expiration_seconds = 3600
 
+# The naming authority (zipline#55): vends device.hostname, the machine-name
+# claims behind the hosts index. A file store resolves `<id>.json` in the VS
+# working dir, so this reads /conf/machines.json (deploy-docker.sh copies it
+# beside attrfile.json).
+[trusted_services.machines]
+api = "file"
+returns_attributes = ["hostnames -> device.hostname{}"]
+expiration_seconds = 3600
+
 
 [bootstrap]
 "node.demo" = "../include/node-public-key.pem"
@@ -36,6 +45,14 @@ port = 53
 l4protocol = "TCP"
 port = 8182
 
+# ICMP6 echo (zipline#55): a hostname names, it does not authorize — ping6
+# needs a protocol/service/Allow of its own. Shape from
+# zl-zpr-visaservice/integration-test/pregen/zpt-test.zplc.
+[protocols.ping]
+l4protocol = "ICMP6"
+icmp_type = "request-response"
+icmp_codes = [128, 129]
+
 
 [services.web]                      # lowercase: DNS lookups are case-sensitive on the VS side
 protocol = "http"
@@ -51,3 +68,10 @@ provider = [["device.zpr.adapter.cn", "dns.demo"], ["zpr.addr", "fd5a:5052:8888:
 protocol = "vs-admin"
 port = 8182
 provider = [["device.zpr.adapter.cn", "vs.zpr"]]
+
+# ICMP6 echo, provided by the web machine (zipline#55). No pinned zpr.addr:
+# ping6 targets whatever address the hosts index resolved, and the provider
+# record already names web.demo's adapter.
+[services.ping]
+protocol = "ping"
+provider = [["device.zpr.adapter.cn", "web.demo"]]
