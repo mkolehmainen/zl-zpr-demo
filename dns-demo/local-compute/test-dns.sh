@@ -21,6 +21,12 @@
 #   5. machine names    — webhost.demo resolves via the hosts index, is
 #      reachable (curl + ping6), and the unique-id alias resolves to the
 #      same address (zipline#55)
+#   6. collision        — a second machine claims webhost: first claim wins,
+#      the loser records hostname_conflicts, the VS logs the rejection
+#   7. precedence       — a machine claims a policy service name (web): the
+#      claim is rejected and web.demo still resolves to the service
+#   8. invalid name     — Not_A_Label is rejected, never transformed:
+#      not-a-label.demo stays NXDOMAIN
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # local-compute/
@@ -97,6 +103,83 @@ resolve_key_status() {  # $1 = URL path, e.g. /admin/visas
        --cacert /conf/include/admin-tls-cert.pem \
        -H \"X-API-Key: \$(cat /conf/vs-resolve.key)\" \
        '$VS_ADMIN_URL$1'"
+}
+
+# --- machine-name helpers (sections 6-8, zipline#55) ------------------------
+
+MACHINES_SRC="$ADMIN/machines.json"          # committed original
+MACHINES_LIVE="$CONF_ROOT/vs/machines.json"  # what the VS file store reads
+VS_LOG="$SCRIPT_DIR/logs/vs.log"
+
+# The client actor's ZPR address, discovered by CN. Unlike web/dns, the client
+# has no pinned service address: the VS assigns its actor address at connect,
+# so it cannot be hardcoded.
+client_addr() {
+  "$CMDS/demo-vs-admin" actors 2>/dev/null | tr -d ' \n' \
+    | sed -n 's/.*{"zpr_addr":"\([^"]*\)","cn":"alice"}.*/\1/p'
+}
+
+# Force the VS to re-read the machines file and reconcile (the vs-admin
+# `services --flush` subcommand drives DELETE /admin/services/machines/cache).
+# The wrapper pipes through jq, which masks vs-admin's exit code, so callers
+# assert on observed effects (poll helpers below), not on this return value.
+flush_machines() {
+  "$CMDS/demo-vs-admin" services --id machines --flush >/dev/null 2>&1
+}
+
+# The client actor's hostname_conflicts JSON array, as a compact one-liner
+# (e.g. '"webhost"' or empty). Rewritten by the VS on every claim attempt.
+client_conflicts() {
+  "$CMDS/demo-vs-admin" actors -a "$CLIENT_ADDR" 2>/dev/null \
+    | tr -d ' \n' | sed -n 's/.*"hostname_conflicts":\[\([^]]*\)\].*/\1/p'
+}
+
+# Section-6 prologue, called once before the controls: resolve the client's
+# actor address. Failing here beats failing obscurely inside wait_conflict.
+require_client_addr() {
+  CLIENT_ADDR="$(client_addr)"
+  [ -n "$CLIENT_ADDR" ] \
+    || fail "could not discover the client (cn=alice) actor address"
+  ok "client (cn=alice) actor address: $CLIENT_ADDR"
+}
+
+# Poll until client_conflicts contains ($3=yes) / no longer contains ($3=no)
+# the name $1, up to $2 seconds. The reconcile after a flush is asynchronous.
+wait_conflict() {
+  local name="$1" deadline="$2" want="$3"
+  local start elapsed got
+  start=$(date +%s)
+  while :; do
+    got="$(client_conflicts)"
+    case "$want" in
+      yes) echo "$got" | grep -q "\"$name\"" && return 0 ;;
+      no)  echo "$got" | grep -q "\"$name\"" || return 0 ;;
+    esac
+    elapsed=$(( $(date +%s) - start ))
+    if [ "$elapsed" -ge "$deadline" ]; then
+      echo "  last hostname_conflicts: [${got:-}] after ${elapsed}s (wanted $name: $want)" >&2
+      return 1
+    fi
+    sleep 2
+  done
+}
+
+# `hosts <name>` -> zpr_addr, empty when unresolved.
+host_zpr_addr() {
+  "$CMDS/demo-vs-admin" hosts "$1" 2>/dev/null \
+    | sed -n 's/.*"zpr_addr": "\([^"]*\)".*/\1/p' | head -1
+}
+
+# Restore the committed machines.json, flush, and wait for the claim state to
+# settle back to the happy path (client conflict-free, webhost held by web).
+restore_machines() {
+  cp "$MACHINES_SRC" "$MACHINES_LIVE"
+  flush_machines
+  wait_conflict "$1" 30 no \
+    || fail "hostname_conflicts still lists $1 after restoring machines.json"
+  [ "$(host_zpr_addr webhost)" = "$WEB_ADDR" ] \
+    || fail "hosts webhost no longer $WEB_ADDR after restoring machines.json"
+  ok "machines.json restored: conflicts clear, webhost -> $WEB_ADDR"
 }
 
 # ---------------------------------------------------------------------------
@@ -290,5 +373,119 @@ alias_answer="$(cdig AAAA m-7f3a2b.demo +short | tr -d '[:space:]')"
 [ -n "$alias_answer" ] && [ "$alias_answer" = "$answer" ] \
   && ok "AAAA m-7f3a2b.demo -> same address as webhost.demo ($alias_answer)" \
   || fail "AAAA m-7f3a2b.demo answered '${alias_answer:-<none>}', wanted '$answer'"
+
+# ---------------------------------------------------------------------------
+banner "6. collision control: a second machine claims webhost (first claim wins)"
+
+require_client_addr
+vs_log_mark=$(wc -l < "$VS_LOG")
+
+# The client's machine also claims webhost. The web machine claimed it first,
+# so the claim must be refused, recorded, and logged — never reassigned.
+cat > "$MACHINES_LIVE" <<'EOF'
+{
+  "device.zpr.adapter.cn": {
+    "web.demo": { "hostnames": ["webhost", "m-7f3a2b"] },
+    "alice": { "hostnames": ["alicebox", "webhost"] }
+  }
+}
+EOF
+flush_machines
+
+if wait_conflict webhost 30 yes; then
+  ok "actors get $CLIENT_ADDR lists webhost under hostname_conflicts"
+else
+  fail "webhost never appeared in the client's hostname_conflicts"
+fi
+
+got_addr="$(host_zpr_addr webhost)"
+[ "$got_addr" = "$WEB_ADDR" ] \
+  && ok "hosts webhost still -> $WEB_ADDR (first claim wins)" \
+  || fail "hosts webhost -> '${got_addr:-<none>}' after collision, wanted $WEB_ADDR"
+
+if tail -n "+$((vs_log_mark + 1))" "$VS_LOG" | grep -q 'claim rejected, name held by another actor'; then
+  ok "VS log carries the rejection at error! (name held by another actor)"
+else
+  fail "no 'claim rejected, name held by another actor' in VS log after mark $vs_log_mark"
+fi
+
+restore_machines webhost
+
+# ---------------------------------------------------------------------------
+banner "7. precedence control: a machine claims a policy service name (web)"
+
+vs_log_mark=$(wc -l < "$VS_LOG")
+
+cat > "$MACHINES_LIVE" <<'EOF'
+{
+  "device.zpr.adapter.cn": {
+    "web.demo": { "hostnames": ["webhost", "m-7f3a2b"] },
+    "alice": { "hostnames": ["alicebox", "web"] }
+  }
+}
+EOF
+flush_machines
+
+if wait_conflict web 30 yes; then
+  ok "actors get $CLIENT_ADDR lists web under hostname_conflicts (policy name wins)"
+else
+  fail "web never appeared in the client's hostname_conflicts"
+fi
+
+if tail -n "+$((vs_log_mark + 1))" "$VS_LOG" | grep -q 'claim rejected, name is a policy service'; then
+  ok "VS log carries the rejection at error! (name is a policy service)"
+else
+  fail "no 'claim rejected, name is a policy service' in VS log after mark $vs_log_mark"
+fi
+
+answer="$(cdig AAAA web.demo +short | tr -d '[:space:]')"
+[ "$answer" = "$WEB_ADDR" ] \
+  && ok "AAAA web.demo still -> $WEB_ADDR (service provider unaffected)" \
+  || fail "AAAA web.demo answered '${answer:-<none>}' after service-name claim, wanted $WEB_ADDR"
+
+restore_machines web
+
+# ---------------------------------------------------------------------------
+banner "8. invalid-name control: Not_A_Label is rejected, never transformed"
+
+vs_log_mark=$(wc -l < "$VS_LOG")
+
+cat > "$MACHINES_LIVE" <<'EOF'
+{
+  "device.zpr.adapter.cn": {
+    "web.demo": { "hostnames": ["webhost", "m-7f3a2b"] },
+    "alice": { "hostnames": ["alicebox", "Not_A_Label"] }
+  }
+}
+EOF
+flush_machines
+
+# Invalid values are rejected before the claim pass, so they never reach
+# hostname_conflicts — the observable trace is the VS error log. Poll it.
+log_ok=""
+for _ in $(seq 1 15); do
+  if tail -n "+$((vs_log_mark + 1))" "$VS_LOG" | grep -q 'invalid device.hostname value rejected'; then
+    log_ok=1; break
+  fi
+  sleep 2
+done
+[ -n "$log_ok" ] \
+  && ok "VS log carries the rejection at error! (not a lowercase DNS label)" \
+  || fail "no 'invalid device.hostname value rejected' in VS log after mark $vs_log_mark"
+
+# No transformed form may resolve: the claim side stores values untransformed
+# and the lookup queries the same way, so the lowercased/dashed spelling must
+# be NXDOMAIN — that is what proves no mangling happened.
+rc="$(rcode AAAA not-a-label.demo)"
+[ "$rc" = "NXDOMAIN" ] \
+  && ok "AAAA not-a-label.demo -> NXDOMAIN (no transformed form resolves)" \
+  || fail "AAAA not-a-label.demo -> $rc, wanted NXDOMAIN"
+
+got_addr="$(host_zpr_addr Not_A_Label)"
+[ -z "$got_addr" ] \
+  && ok "hosts Not_A_Label does not resolve" \
+  || fail "hosts Not_A_Label resolved to '$got_addr', wanted nothing"
+
+restore_machines no-such-conflict
 
 finish
