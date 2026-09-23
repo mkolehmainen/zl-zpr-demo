@@ -1,6 +1,5 @@
 [global]
 ca_file = "include/auth-ca.crt"
-zpr_addr = [ "fd5a:5052:8888::13" ] # client overlay addr (containerized, unlike multinode's host-side alice)
 tun_if = "tun9"
 
 [adapter]
