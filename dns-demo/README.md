@@ -18,7 +18,7 @@ OCI/OpenTofu parts.
 | `Dockerfile` | ubuntu:24.04 + valkey + dnsutils + the ZPR binaries (image `zpr-dns-demo`) |
 | `docker-compose.yml` | `node` (172.30.1.10), `vs` (.11), `web` (.12), `client` (.13), `dns` (.14) |
 | `local-compute/deploy-docker.sh` | render templates → mint API keys → compile policy → compose up → launch ZPR processes |
-| `local-compute/entrypoint-*.sh` | per-container tun9 + static ZPR address setup |
+| `local-compute/entrypoint-*.sh` | per-container tun9 setup (+ static ZPR address, except the client) |
 | `local-compute/test-dns.sh` | the end-to-end DNS acceptance test (see below) |
 | `zpr-conf/admin/` | `dns-demo.zpl`, `dns-demo.zplc.template`, `attrfile.json`, `machines.json` (policy) |
 | `zpr-conf/confs/` | node + adapter config templates, `Corefile` |
@@ -34,9 +34,16 @@ OCI/OpenTofu parts.
 | node | `fd5a:5052:90de::10` (`90de` = "node": N-ine + ode) |
 | web service | `fd5a:5052:8888::80` (pinned service addr) |
 | resolver | `fd5a:5052:8888::53` (pinned service addr) |
-| client (alice) | `fd5a:5052:8888::13` |
+| client (alice) | dynamic (fabric-assigned, `fd5a:5052:adda:1::/64` pool) |
 
 `fd5a:5052:90de::/64` is reserved for nodes — nothing else may use it.
+
+Since zipline#83 an adapter exits fatally when a configured `zpr_addr` is not
+granted, and only actors covered by a join policy (infrastructure and pinned
+services) can be granted a pinned address. The client is a user-only actor, so
+it carries no `zpr_addr`: the fabric assigns its address from the dynamic pool
+on grant, and `ph` adds it to `tun9` itself. `test-dns.sh` discovers the
+client's current address by CN via the VS admin API.
 
 ## Build
 
