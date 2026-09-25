@@ -103,7 +103,8 @@ docker exec web curl -fsS http://localhost:80 >/dev/null \
   || { echo "ERROR: nginx not serving in web" >&2; exit 1; }
 launch web web-adapter "/app/bin/ph adapter -c adapter-web-conf.toml"
 launch client client-adapter "/app/bin/ph adapter -c adapter-client-conf.toml"
-# After the VS: the resolver's adapter registers zpr-dns's pinned address.
+# After the VS: the resolver's adapter registers zpr-dns's static address
+# (granted by the `machines` store).
 # CoreDNS itself is the dns container's entrypoint, already running.
 launch dns dns-adapter "/app/bin/ph adapter -c adapter-dns-conf.toml"
 

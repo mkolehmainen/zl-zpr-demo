@@ -12,7 +12,7 @@ host: "node 0"
 
 host: "web 0"
 - lives: OCI
-- zpr addr: `fd5a:5052:8888::8`
+- zpr addr: `fd5a:5052:8888::8` (granted by the `addresses` trusted service, see `admin/addresses.json`)
 - CN: `ociweb.demo`
 
 host: "alice"  # previously called "admin"
@@ -32,7 +32,7 @@ host: "node 1"
 
 host: "web 1"
 - lives: local
-- zpr addr: `fd5a:5052:8888::9`
+- zpr addr: `fd5a:5052:8888::9` (granted by the `addresses` trusted service, see `admin/addresses.json`)
 - CN: `premweb.demo`
 
 host: "bob"   # previously "client"

@@ -27,6 +27,15 @@ api = "file"
 returns_attributes = ["location -> user.location", "access -> user.access{}"]
 expiration_seconds = 3600
 
+# The addressing authority (zipline#108): grants the two web services their
+# static ZPR addresses as device.zpr_addr. A file store resolves `<id>.json`
+# in the VS working dir, so this reads addresses.json (deploy-docker.sh
+# copies it beside attrfile.json).
+[trusted_services.addresses]
+api = "file"
+returns_attributes = ["zpr_addr -> device.zpr_addr"]
+expiration_seconds = 3600
+
 
 [bootstrap]
 "node0.demo" = "../include/node0-public-key.pem"
@@ -46,10 +55,10 @@ port = 80
 [services.OciWeb]
 protocol = "http"
 port = "80"
-provider = [[ "device.zpr.adapter.cn", "ociweb.demo" ], ["zpr.addr", "fd5a:5052:8888::8"]]
+provider = [[ "device.zpr.adapter.cn", "ociweb.demo" ]]   # static addr granted by `addresses` (device.zpr_addr)
 
 [services.PremWeb]
 protocol = "http"
 port = "80"
-provider = [[ "device.zpr.adapter.cn", "premweb.demo" ], ["zpr.addr", "fd5a:5052:8888::9" ]]
+provider = [[ "device.zpr.adapter.cn", "premweb.demo" ]]   # static addr granted by `addresses` (device.zpr_addr)
 

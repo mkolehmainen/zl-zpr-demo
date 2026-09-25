@@ -1,7 +1,11 @@
 {
   "device.zpr.adapter.cn": {
     "web.demo": {
-      "hostnames": ["webhost", "m-7f3a2b"]
+      "hostnames": ["webhost", "m-7f3a2b"],
+      "zpr_addr": ["fd5a:5052:8888::80"]
+    },
+    "dns.demo": {
+      "zpr_addr": ["fd5a:5052:8888::53"]
     },
     "alice": {
       "hostnames": ["alicebox"]

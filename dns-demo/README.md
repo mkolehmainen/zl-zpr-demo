@@ -33,16 +33,18 @@ OCI/OpenTofu parts.
 |---|---|
 | visa service | `fd5a:5052::1` (well-known) |
 | node | `fd5a:5052:90de::10` (`90de` = "node": N-ine + ode) |
-| web service | `fd5a:5052:8888::80` (pinned service addr) |
-| resolver | `fd5a:5052:8888::53` (pinned service addr) |
+| web service | `fd5a:5052:8888::80` (granted by `machines`) |
+| resolver | `fd5a:5052:8888::53` (granted by `machines`) |
 | client (alice) | dynamic (fabric-assigned, `fd5a:5052:adda:1::/64` pool) |
 
 `fd5a:5052:90de::/64` is reserved for nodes — nothing else may use it.
 
 Since zipline#83 an adapter exits fatally when a configured `zpr_addr` is not
-granted, and only actors covered by a join policy (infrastructure and pinned
-services) can be granted a pinned address. The client is a user-only actor, so
-it carries no `zpr_addr`: the fabric assigns its address from the dynamic pool
+granted. The web and resolver addresses are granted by the `machines` trusted
+service, which vends `device.zpr_addr` from `machines.json`
+(zipline#108) — the policy no longer pins any address. The client is a
+user-only actor, so it carries no `zpr_addr`: the fabric assigns its address
+from the dynamic pool
 on grant, and `ph` adds it to `tun9` itself. `test-dns.sh` discovers the
 client's current address by CN via the VS admin API.
 
@@ -143,17 +145,21 @@ docker exec dns sh -c 'curl -s -o /dev/null -w "%{http_code}" \
 Services are not the only things with names: a **machine** (an adapter's
 device) can be named too, by a trusted service acting as the naming
 authority. `zpr-conf/admin/machines.json` is that authority's data here —
-the `machines` file store vends it as the `device.hostname` attribute:
+the `machines` file store vends it as the `device.hostname` attribute, and
+(since zipline#108) also grants the static service addresses as
+`device.zpr_addr`:
 
 ```toml
 [trusted_services.machines]
 api = "file"
-returns_attributes = ["hostnames -> device.hostname{}"]
+returns_attributes = ["hostnames -> device.hostname{}", "zpr_addr -> device.zpr_addr"]
 expiration_seconds = 3600
 ```
 
 ```json
-{ "device.zpr.adapter.cn": { "web.demo": { "hostnames": ["webhost", "m-7f3a2b"] },
+{ "device.zpr.adapter.cn": { "web.demo": { "hostnames": ["webhost", "m-7f3a2b"],
+                                           "zpr_addr": ["fd5a:5052:8888::80"] },
+                             "dns.demo": { "zpr_addr": ["fd5a:5052:8888::53"] },
                              "alice":    { "hostnames": ["alicebox"] } } }
 ```
 
@@ -205,8 +211,8 @@ the attrfile store never loads, no `user.*` attribute is ever vended, and a
 bare `users` condition can never match. `attrfile.json` is keyed by
 `device.zpr.adapter.cn` (the file store's identity-key/value JSON shape).
 
-The `machines` store needs no such reference: it vends `device.hostname`, a
-visa-service-interpreted attribute, and since
+The `machines` store needs no such reference: it vends `device.hostname` and
+`device.zpr_addr`, both visa-service-interpreted attributes, and since
 [zipline#105](https://github.com/mkolehmainen/zipline/issues/105) the compiler
 retains any store vending one (`device.hostname`, `device.zpr_addr`) on its
 own. The `ping` rule's object-side device spec `on hostname: devices`
