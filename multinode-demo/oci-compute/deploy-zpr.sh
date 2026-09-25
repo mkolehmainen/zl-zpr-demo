@@ -129,7 +129,8 @@ start_ph    "$ALICE_PUB" adapter adapter-alice-conf.toml alice "sudo "
 
 # --- /etc/hosts for the demo web actors (work/hosts-files.md) ---
 # The operator curls premweb.demo / ociweb.demo from this host. Both addresses
-# are fixed by policy (zpr-conf/admin/multinode-demo.zplc.template), so there is
+# are static, granted by the `addresses` trusted service
+# (zpr-conf/admin/addresses.json, vended as device.zpr_addr), so there is
 # nothing to derive — just plant them. Delete-then-append keeps a re-run from
 # stacking duplicate lines.
 ssh_h "$ALICE_PUB" "sudo sed -i '/ premweb\.demo\$/d;/ ociweb\.demo\$/d' /etc/hosts; \

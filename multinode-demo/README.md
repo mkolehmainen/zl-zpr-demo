@@ -214,7 +214,8 @@ curl -v http://[fd5a:5052:8888::8]/     # OciWeb  (webserver in OCI)
 curl -v http://[fd5a:5052:8888::9]/     # PremWeb (web1 in the local docker env)
 ```
 
-Those are the `zpr.addr`s the policy declares for the two services — see
+Those are the two services' static ZPR addresses, granted by the `addresses`
+trusted service (`zpr-conf/admin/addresses.json`) as `device.zpr_addr` — see
 `zpr-conf/admin/multinode-demo.zplc.template`. A curl that hangs or is refused
 usually means "no visa", not "no route": check the adapter's output.
 

@@ -1,0 +1,10 @@
+{
+  "device.zpr.adapter.cn": {
+    "ociweb.demo": {
+      "zpr_addr": ["fd5a:5052:8888::8"]
+    },
+    "premweb.demo": {
+      "zpr_addr": ["fd5a:5052:8888::9"]
+    }
+  }
+}
