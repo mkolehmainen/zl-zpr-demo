@@ -15,13 +15,14 @@ api = "file"
 returns_attributes = ["location -> user.location", "access -> user.access{}"]
 expiration_seconds = 3600
 
-# The naming authority (zipline#55): vends device.hostname, the machine-name
-# claims behind the hosts index. A file store resolves `<id>.json` in the VS
-# working dir, so this reads /conf/machines.json (deploy-docker.sh copies it
-# beside attrfile.json).
+# The naming and addressing authority (zipline#55, zipline#108): vends
+# device.hostname (the machine-name claims behind the hosts index) and
+# device.zpr_addr (the static ZPR addresses granted to web.demo and dns.demo).
+# A file store resolves `<id>.json` in the VS working dir, so this reads
+# /conf/machines.json (deploy-docker.sh copies it beside attrfile.json).
 [trusted_services.machines]
 api = "file"
-returns_attributes = ["hostnames -> device.hostname{}"]
+returns_attributes = ["hostnames -> device.hostname{}", "zpr_addr -> device.zpr_addr"]
 expiration_seconds = 3600
 
 
@@ -57,21 +58,21 @@ icmp_codes = [128, 129]
 [services.web]                      # lowercase: DNS lookups are case-sensitive on the VS side
 protocol = "http"
 port = 80
-provider = [["device.zpr.adapter.cn", "web.demo"], ["zpr.addr", "fd5a:5052:8888::80"]]
+provider = [["device.zpr.adapter.cn", "web.demo"]]   # static addr granted by `machines` (device.zpr_addr)
 
 [services.zpr-dns]
 protocol = "dns"
 port = 53
-provider = [["device.zpr.adapter.cn", "dns.demo"], ["zpr.addr", "fd5a:5052:8888::53"]]
+provider = [["device.zpr.adapter.cn", "dns.demo"]]   # static addr granted by `machines` (device.zpr_addr)
 
 [services.vs-admin]
 protocol = "vs-admin"
 port = 8182
 provider = [["device.zpr.adapter.cn", "vs.zpr"]]
 
-# ICMP6 echo, provided by the web machine (zipline#55). No pinned zpr.addr:
-# ping6 targets whatever address the hosts index resolved, and the provider
-# record already names web.demo's adapter.
+# ICMP6 echo, provided by the web machine (zipline#55). No address of its
+# own: ping6 targets whatever address the hosts index resolved, and the
+# provider record already names web.demo's adapter.
 [services.ping]
 protocol = "ping"
 provider = [["device.zpr.adapter.cn", "web.demo"]]

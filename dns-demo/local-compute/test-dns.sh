@@ -9,7 +9,7 @@
 #   local-compute/test-dns.sh
 #
 # Sections:
-#   1. fixture sanity   — zpr-dns registered with its pinned address
+#   1. fixture sanity   — zpr-dns registered with its granted static address
 #   2. resolution       — AAAA answer, resolv.conf path, NODATA/NXDOMAIN shapes
 #   3. liveness         — stop web's adapter -> NXDOMAIN; restart -> resolves
 #   4. negative controls
@@ -112,7 +112,7 @@ MACHINES_LIVE="$CONF_ROOT/vs/machines.json"  # what the VS file store reads
 VS_LOG="$SCRIPT_DIR/logs/vs.log"
 
 # The client actor's ZPR address, discovered by CN. Unlike web/dns, the client
-# has no pinned service address: the VS assigns its actor address at connect,
+# has no static service address: the VS assigns its actor address at connect,
 # so it cannot be hardcoded.
 client_addr() {
   "$CMDS/demo-vs-admin" actors 2>/dev/null | tr -d ' \n' \
@@ -207,7 +207,7 @@ disarm_restore_trap() {
 }
 
 # ---------------------------------------------------------------------------
-banner "1. fixture sanity: zpr-dns is registered with its pinned address"
+banner "1. fixture sanity: zpr-dns is registered with its granted static address"
 
 # The dns adapter registers its provider record moments after deploy returns;
 # poll rather than racing it.
