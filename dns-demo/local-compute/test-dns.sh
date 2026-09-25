@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# End-to-end DNS test for dns-demo (zipline#38, master plan I1 Steps 2-4).
+# End-to-end DNS test for dns-demo (zipline#38).
 #
 # Proves that a ZPR client resolves a ZPL service name over the overlay and
 # gets the current provider's address, that resolution is live, and that both

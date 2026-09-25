@@ -1,4 +1,4 @@
-# dns-demo policy (Contract 4 of docs/plans/2026-09-15-dns-integration.md).
+# dns-demo policy (zipline#35; shape: zl-zpr-dev-context/docs/DNS.md, "Configuring it").
 #
 # http://web.demo (resolvable as web.<zone> once I1 adds the resolver)
 Define web as a service.
@@ -10,7 +10,7 @@ Define zpr-dns as a service.
 # The visa service's admin API, provided by the VS adapter itself.
 Define vs-admin as a service.
 
-# Deviation from Contract 4's bare `Allow users ...`, found by test: an
+# Deviation from the originally planned bare `Allow users ...`, found by test: an
 # unreferenced `file` trusted service is pruned by the compiler, so with no
 # attribute reference anywhere in ZPL the attrfile store never loads, alice
 # never receives a user.* attribute, and a bare `users` condition

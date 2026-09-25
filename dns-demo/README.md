@@ -1,7 +1,8 @@
 # dns-demo
 
 A containerized single-node ZPR environment for the DNS integration
-(master plan: `zl-zpr-dev-context/docs/plans/2026-09-15-dns-integration.md`).
+([zipline#34](https://github.com/mkolehmainen/zipline/issues/34); the design is
+`zl-zpr-dev-context/docs/DNS.md`).
 This fixture stands up node + visa service + web service + client + a CoreDNS
 resolver (`dns`), with a policy governing both DNS hops: a ZPR client `dig`s a
 ZPL service name (`web.demo`) over the overlay and gets the current provider's
