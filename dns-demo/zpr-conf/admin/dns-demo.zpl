@@ -24,11 +24,11 @@ Allow access:all users to access zpr-dns.
 Allow zpr-dns to access vs-admin.
 
 # zipline#55: ICMP6 echo to the web machine. The object-side device spec
-# references device.hostname (key-presence), which is what weaves the
-# `machines` file store into the policy — same deviation as attrfile above:
-# an unreferenced `file` trusted service is pruned by the compiler, and the
-# hosts index only fills from a woven store. It also states the demo's point:
-# you ping a *named* machine.
+# references device.hostname (key-presence) to state the demo's point: you
+# ping a *named* machine. Since zipline#105 the reference is no longer what
+# keeps the `machines` file store woven — the compiler retains any store
+# vending a visa-service-interpreted attribute (device.hostname,
+# device.zpr_addr) on its own.
 Define ping as a service.
 
 Allow access:all users to access ping on hostname: devices.

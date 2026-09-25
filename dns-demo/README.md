@@ -176,7 +176,8 @@ That `ping6` works only because the policy declares it: a hostname **names**,
 it does not authorize. The demo adds an ICMP6 `ping` protocol/service
 (provided by `web.demo`) and
 `Allow access:all users to access ping on hostname: devices.` — the
-`hostname:` reference is also what keeps the `machines` store woven (see
+`hostname:` reference states the demo's point (you ping a *named* machine);
+since zipline#105 it is not what keeps the `machines` store woven (see
 Policy notes).
 
 **Negative controls** (`test-dns.sh` sections 6–8). Each mutates the live
@@ -204,9 +205,13 @@ the attrfile store never loads, no `user.*` attribute is ever vended, and a
 bare `users` condition can never match. `attrfile.json` is keyed by
 `device.zpr.adapter.cn` (the file store's identity-key/value JSON shape).
 
-The `machines` store is woven the same way: the `ping` rule's object-side
-device spec `on hostname: devices` (key-presence on `device.hostname`) is the
-reference that keeps it from being pruned. `machines.json` uses the same
+The `machines` store needs no such reference: it vends `device.hostname`, a
+visa-service-interpreted attribute, and since
+[zipline#105](https://github.com/mkolehmainen/zipline/issues/105) the compiler
+retains any store vending one (`device.hostname`, `device.zpr_addr`) on its
+own. The `ping` rule's object-side device spec `on hostname: devices`
+(key-presence on `device.hostname`) stays because it expresses the demo's
+point, not to defeat pruning. `machines.json` uses the same
 identity-key/value JSON shape.
 
 ## PKI (zpr-conf/include/)
