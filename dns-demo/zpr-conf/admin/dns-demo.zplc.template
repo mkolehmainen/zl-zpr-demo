@@ -1,4 +1,4 @@
-# dns-demo policy configuration (Contract 4). Single node, no [links.*].
+# dns-demo policy configuration (zipline#35; shape: zl-zpr-dev-context/docs/DNS.md, "Configuring it"). Single node, no [links.*].
 
 [nodes.n0]
 provider = [["device.zpr.adapter.cn", "node.demo"]]

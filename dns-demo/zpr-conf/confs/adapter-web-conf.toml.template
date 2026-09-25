@@ -1,6 +1,6 @@
 [global]
 ca_file = "include/auth-ca.crt"
-zpr_addr = [ "fd5a:5052:8888::80" ] # web's pinned service addr (Contract 4)
+zpr_addr = [ "fd5a:5052:8888::80" ] # web's pinned service addr (must match dns-demo.zplc.template)
 tun_if = "tun9"
 
 [adapter]
