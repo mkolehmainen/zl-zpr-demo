@@ -428,10 +428,19 @@ arm_restore_trap
 
 # The client's machine also claims webhost. The web machine claimed it first,
 # so the claim must be refused, recorded, and logged — never reassigned.
+# Fixture = committed machines.json plus alice's competing claim: the zpr_addr
+# grants and the dns.demo record MUST survive every rewrite (see
+# assert_fixture_keeps_grants).
 cat > "$MACHINES_LIVE" <<'EOF'
 {
   "device.zpr.adapter.cn": {
-    "web.demo": { "hostnames": ["webhost", "m-7f3a2b"] },
+    "web.demo": {
+      "hostnames": ["webhost", "m-7f3a2b"],
+      "zpr_addr": ["fd5a:5052:8888::80"]
+    },
+    "dns.demo": {
+      "zpr_addr": ["fd5a:5052:8888::53"]
+    },
     "alice": { "hostnames": ["alicebox", "webhost"] }
   }
 }
@@ -466,7 +475,13 @@ vs_log_mark=$(wc -l < "$VS_LOG")
 cat > "$MACHINES_LIVE" <<'EOF'
 {
   "device.zpr.adapter.cn": {
-    "web.demo": { "hostnames": ["webhost", "m-7f3a2b"] },
+    "web.demo": {
+      "hostnames": ["webhost", "m-7f3a2b"],
+      "zpr_addr": ["fd5a:5052:8888::80"]
+    },
+    "dns.demo": {
+      "zpr_addr": ["fd5a:5052:8888::53"]
+    },
     "alice": { "hostnames": ["alicebox", "web"] }
   }
 }
@@ -501,7 +516,13 @@ vs_log_mark=$(wc -l < "$VS_LOG")
 cat > "$MACHINES_LIVE" <<'EOF'
 {
   "device.zpr.adapter.cn": {
-    "web.demo": { "hostnames": ["webhost", "m-7f3a2b"] },
+    "web.demo": {
+      "hostnames": ["webhost", "m-7f3a2b"],
+      "zpr_addr": ["fd5a:5052:8888::80"]
+    },
+    "dns.demo": {
+      "zpr_addr": ["fd5a:5052:8888::53"]
+    },
     "alice": { "hostnames": ["alicebox", "Not_A_Label"] }
   }
 }
