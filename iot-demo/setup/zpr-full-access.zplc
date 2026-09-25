@@ -9,8 +9,7 @@ dock_node = "node"
 admin_attrs = [ [ "device.zpr.adapter.cn", "admin.zpr.org" ] ]
 
 [bootstrap]
-"node.zpr.org" = "node-public-key.pem"
-"web.zpr.org" = "web-public-key.pem"
+"node.zpr.org" = "node/node-public-key.pem"
 
 [protocols.http]
 l4protocol = "iana.TCP"
