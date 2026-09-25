@@ -206,6 +206,24 @@ disarm_restore_trap() {
   trap - EXIT INT TERM
 }
 
+# Every fixture written over the live machines.json must stay a superset of
+# the committed static-address grants: the store now vends device.zpr_addr
+# (zipline#108), and since zipline#83 an adapter exits fatally when its
+# configured zpr_addr loses its grant. A fixture that drops web.demo's
+# zpr_addr or the dns.demo record would kill any web/DNS adapter that
+# reconnects during the test window and leave the demo broken. Called after
+# every fixture write, BEFORE the flush hands it to the VS.
+assert_fixture_keeps_grants() {
+  local ctx="$1"
+  if grep -q "\"$WEB_ADDR\"" "$MACHINES_LIVE" \
+     && grep -q '"dns\.demo"' "$MACHINES_LIVE" \
+     && grep -q "\"$RESOLVER\"" "$MACHINES_LIVE"; then
+    ok "$ctx fixture retains the web/dns static-address grants"
+  else
+    fail "$ctx fixture drops the web/dns zpr_addr grants from machines.json"
+  fi
+}
+
 # ---------------------------------------------------------------------------
 banner "1. fixture sanity: zpr-dns is registered with its granted static address"
 
@@ -418,6 +436,7 @@ cat > "$MACHINES_LIVE" <<'EOF'
   }
 }
 EOF
+assert_fixture_keeps_grants "collision (section 6)"
 flush_machines
 
 if wait_conflict webhost 30 yes; then
@@ -452,6 +471,7 @@ cat > "$MACHINES_LIVE" <<'EOF'
   }
 }
 EOF
+assert_fixture_keeps_grants "precedence (section 7)"
 flush_machines
 
 if wait_conflict web 30 yes; then
@@ -486,6 +506,7 @@ cat > "$MACHINES_LIVE" <<'EOF'
   }
 }
 EOF
+assert_fixture_keeps_grants "invalid-name (section 8)"
 flush_machines
 
 # Invalid values are rejected before the claim pass, so they never reach
